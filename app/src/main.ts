@@ -1,7 +1,9 @@
 import Phaser from 'phaser';
 import './style.css';
 import { CityScene, type CityView, type Tk } from './scenes/CityScene';
-import { stockInfo } from './core/stocks';
+import { stockInfo, SECTOR_NAMES } from './core/stocks';
+import { openStockChart } from './ui/chart';
+import { hqHtml, startTicker } from './ui/hq';
 import { ROLES, type RoleId } from './core/config';
 import { FLOORS, FUTURE_FLOORS, PRODUCTS, roomById, floorOfRoom, type FloorDef, type RoomDef } from './core/building';
 import {
@@ -183,28 +185,15 @@ function showRoom(floorId: number, roomId: string) {
     <h4>Điều kiện</h4>${checklist(cs)}${prods ? `<h4>Sẽ mở khóa</h4>${prods}` : ''}
     <div class="row"><button class="primary" id="mBuild" data-room="${r.id}" ${ok ? '' : 'disabled'}>Xây phòng · ${money(r.cost)}</button><button id="mClose">Đóng</button></div>`);
 }
-function showFloor(floorId: number) {
-  const f = FLOORS.find((x) => x.id === floorId); if (!f) return;
-  state.floor = f.id; renderCards();
-  if (co.floors.includes(f.id)) {
-    const rows = f.rooms.map((r) => { const b = co.rooms.includes(r.id);
-      return `<div class="prod ${b ? '' : 'off'}" style="cursor:pointer" data-roomopen="${f.id}:${r.id}"><b style="color:${r.css}">${r.name}</b> <small>${b ? 'ĐÃ XÂY' : `mặt bằng trống · ${money(r.cost)}`}</small><div class="pd">${r.blurb}</div></div>`; }).join('');
-    modal(`<h2>Tầng ${f.id} · ${f.name}</h2><p class="desc">${f.blurb}</p>${rows}<div class="row"><button id="hqBack">← Trụ sở</button><button id="mClose">Đóng</button></div>`);
-    return;
-  }
-  const cs = floorChecks(co, f), ok = allOk(cs);
-  modal(`<h2>Tầng ${f.id} · ${f.name}</h2><p class="desc">${f.blurb}</p>
-    <div class="kv"><span>Chi phí mở tầng</span><b>${money(f.cost)}</b></div>
-    <h4>Điều kiện</h4>${checklist(cs)}
-    <h4>Gồm các phòng</h4><ul class="plain">${f.rooms.map((r) => `<li><b style="color:${r.css}">${r.name}</b> · ${money(r.cost)} — ${r.blurb}</li>`).join('')}</ul>
-    <div class="row"><button class="primary" id="mFloor" data-floor="${f.id}" ${ok ? '' : 'disabled'}>Mở tầng · ${money(f.cost)}</button><button id="mClose">Đóng</button></div>`);
+function renderHQ(sel: number) {
+  state.floor = sel; renderCards();
+  modal(hqHtml(co, sel)); startTicker();
 }
-function showHQ() {
-  const rows = FLOORS.map((f) => {
-    const un = co.floors.includes(f.id), built = f.rooms.filter((r) => co.rooms.includes(r.id)).length;
-    return `<div class="prod ${un ? '' : 'off'}" style="cursor:pointer" data-hqfloor="${f.id}"><b>Tầng ${f.id} · ${f.name}</b> <small>${un ? `${built}/${f.rooms.length} phòng` : `chưa mở · bậc ${f.tier} · ${money(f.cost)}`}</small><div class="pd">${f.blurb}</div></div>`;
-  }).join('');
-  modal(`<h2>Trụ sở công ty</h2><p>Bấm một tầng để xem phòng, xây thêm hoặc mở tầng mới.</p>${rows}<div class="row"><button id="mClose">Đóng</button></div>`);
+function showFloor(floorId: number) { renderHQ(floorId); }
+function showHQ() { renderHQ(state.floor || 1); }
+function openStock(sym: string) {
+  const info = stockInfo(sym); if (!info) return;
+  openStockChart({ sym, name: info.name, sector: SECTOR_NAMES[info.sector], board: board[sym], modal });
 }
 function showCatalog() {
   const groups = FLOORS.map((f) => {
@@ -253,19 +242,15 @@ function startGame(role: RoleId) {
     const view: CityView = {
       state: () => ({ floors: co.floors.length, maxFloors: FLOORS.length, rooms: co.rooms, name: 'Chứng khoán Sàn Đỏ' }),
       onHQ: () => showHQ(),
-      onStock: (sym) => {
-        const info = stockInfo(sym);
-        const t = tickersAt(state.slots ? (state.slots.slots['VNINDEX']?.length ?? 1) - 1 : null).find((x) => x.sym === sym);
-        log('SYS', `${sym} · ${info?.name ?? ''}: ${t ? (t.pct >= 0 ? '+' : '') + t.pct.toFixed(2) + '%' : '—'}`);
-      },
+      onStock: (sym) => openStock(sym),
       onLot: (room) => {
         if (!room) { log('SYS', 'Lô đất này sẽ mở ở bản sau.'); return; }
-        const f = floorOfRoom(room); if (f) showRoom(f.id, room);
+        const f = floorOfRoom(room); if (f) renderHQ(f.id);
       },
       onHover: (h) => {
         const tip = $('#tip'); if (!h) { tip.style.display = 'none'; return; }
         const col = ({ up: '#3fcf6d', down: '#ef5350', ref: '#f5c542', ceil: '#e879f9', floor: '#22d3ee' } as Record<string, string>)[h.st] ?? '#fff';
-        tip.innerHTML = `<b>${h.sym}</b> <small>${h.name}</small><br><span style="color:${col}">${h.pct >= 0 ? '+' : ''}${h.pct.toFixed(2)}% · ${h.price.toFixed(2)}${h.st === 'ceil' ? ' · TRẦN' : h.st === 'floor' ? ' · SÀN' : ''}</span>`;
+        tip.innerHTML = `<b>${h.sym}</b> <small>${h.name} · ${h.sector}</small><br><span style="color:${col}">${h.pct >= 0 ? '+' : ''}${h.pct.toFixed(2)}% · ${h.price.toFixed(2)}${h.st === 'ceil' ? ' · TRẦN' : h.st === 'floor' ? ' · SÀN' : ''}</span>`;
         tip.style.display = 'block'; tip.style.left = h.x + 14 + 'px'; tip.style.top = h.y + 14 + 'px';
       },
     };
@@ -285,9 +270,17 @@ function startGame(role: RoleId) {
 document.addEventListener('click', (e) => {
   const t = e.target as HTMLElement;
   const chip = t.closest('[data-f]') as HTMLElement | null; if (chip) { state.filter = chip.dataset.f!; renderChips(); renderLog(); return; }
-  const ro = t.closest('[data-roomopen]') as HTMLElement | null; if (ro) { const [fid, rid] = ro.dataset.roomopen!.split(':'); showRoom(+fid, rid); return; }
-  if (t.id === 'hqBack') { showHQ(); return; }
-  const hqf = t.closest('[data-hqfloor]') as HTMLElement | null; if (hqf) { showFloor(+hqf.dataset.hqfloor!); return; }
+  const sel = t.closest('[data-hqsel]') as HTMLElement | null; if (sel) { renderHQ(+sel.dataset.hqsel!); return; }
+  const bld = t.closest('[data-buildroom]') as HTMLElement | null;
+  if (bld && !(bld as HTMLButtonElement).disabled) {
+    const r = roomById(bld.dataset.buildroom!); if (r && buildRoom(co, r)) { const f = floorOfRoom(r.id)!; log('T' + f.id, `Xây phòng ${r.name} (−${money(r.cost)})`, '#3fcf6d'); refreshAll(); renderHQ(f.id); }
+    return;
+  }
+  const ulk = t.closest('[data-unlockfloor]') as HTMLElement | null;
+  if (ulk && !(ulk as HTMLButtonElement).disabled) {
+    const f = FLOORS.find((x) => x.id === +ulk.dataset.unlockfloor!); if (f && unlockFloor(co, f)) { log('T' + f.id, `Mở tầng ${f.id}: ${f.name} (−${money(f.cost)})`, '#3fcf6d'); refreshAll(); renderHQ(f.id); }
+    return;
+  }
   const card = t.closest('.dcard[data-floor]') as HTMLElement | null; if (card) { showFloor(+card.dataset.floor!); return; }
   const role = t.closest('[data-role]') as HTMLElement | null; if (role && !(role as HTMLButtonElement).disabled) { void chooseRole(role.dataset.role as RoleId); return; }
   if (t.id === 'mClose') { closeModal(); return; }

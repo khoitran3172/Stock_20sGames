@@ -33,10 +33,18 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<{ status: 
 }
 
 export const health = () => call<{ ok: boolean; vnDate: string }>('/api/health');
-export interface BoardRow { sym: string; ref: number; ceil: number; floor: number; last: number }
+export interface BoardRow { sym: string; ref: number; ceil: number; floor: number; last: number; foreignBuy?: number; foreignSell?: number }
 export const fetchMarket = () => call<{ date: string; board: BoardRow[] }>('/api/market');
 export const fetchSlots = (date?: string) => call<SlotsResp>('/api/slots' + (date ? `?date=${date}` : ''));
 export const createPlayer = () => call<{ created?: boolean; exists?: boolean; recoveryCode?: string }>('/api/player/new', { method: 'POST' });
 export const recoverPlayer = (code: string) => call<{ recovered?: boolean; error?: string }>('/api/player/recover', { method: 'POST', body: JSON.stringify({ recoveryCode: code }) });
 export const loadSave = () => call<{ role: string | null; save: unknown }>('/api/save');
 export const putSave = (role: string, save: unknown) => call<{ ok: boolean }>('/api/save', { method: 'PUT', body: JSON.stringify({ role, save }) });
+
+export interface CandleResp { date: string; sym: string; t: number[]; o: number[]; h: number[]; l: number[]; c: number[]; v: number[] }
+export const fetchCandles = (sym: string, date?: string) => call<CandleResp>(`/api/candles?sym=${sym}` + (date ? `&date=${date}` : ''));
+/** Nến ngày lịch sử: tệp tĩnh do tools/fetch_data.py sinh, được GitHub Pages phát tại /data/ (cho phép CORS). */
+const DATA_BASE = 'https://khoitran3172.github.io/Stock_20sGames/data/';
+export async function fetchDaily(sym: string): Promise<{ d: string; o: number; h: number; l: number; c: number; v: number }[] | null> {
+  try { const r = await fetch(DATA_BASE + sym + '.json'); return r.ok ? await r.json() : null; } catch { return null; }
+}

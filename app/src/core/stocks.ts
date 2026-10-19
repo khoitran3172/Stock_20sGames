@@ -40,3 +40,13 @@ export const PLOTS: string[][] = [
   ['MSN', 'SAB', 'VNM', 'HPG', 'lot:bh', 'GVR'],
   ['FPT', 'VJC', 'BSR', 'GAS', 'future', 'future'],
 ];
+
+export const SECTOR_NAMES: Record<Sector, string> = {
+  bank: 'Ngân hàng', sec: 'Chứng khoán', resi: 'Bất động sản nhà ở', complex: 'Tập đoàn / BĐS', retail: 'Bán lẻ', food: 'Thực phẩm - đồ uống',
+  steel: 'Thép', oil: 'Dầu khí', tech: 'Công nghệ', air: 'Hàng không', rubber: 'Cao su',
+};
+/** màu nền khu đất theo ngành (nhân với tile plaza) */
+export const SECTOR_TINT: Record<Sector, number> = {
+  bank: 0x9fc4ff, sec: 0xcfa8ff, resi: 0xffc8a0, complex: 0xffb88c, retail: 0xffa860, food: 0x9fe8e8,
+  steel: 0xb8b8c8, oil: 0xe89090, tech: 0x80e0c8, air: 0xf0f0f0, rubber: 0xa8e088,
+};

@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { registerIsoArt, TW } from '../core/isoart';
-import { PLOTS, SECTOR_SPRITES, SPRITE_FILES, stockInfo } from '../core/stocks';
+import { PLOTS, SECTOR_SPRITES, SPRITE_FILES, SECTOR_NAMES, SECTOR_TINT, stockInfo } from '../core/stocks';
 import { roomById } from '../core/building';
 
 /* Thành phố isometric: lưới 6×6 ô đất (mỗi ô 2×2 tile), đường rộng 1 tile giữa các ô.
@@ -13,7 +13,7 @@ const LABEL_COL: Record<string, string> = { up: '#3fcf6d', down: '#ef5350', ref:
 const PAD_SPRITES = new Set(['bank_b', 'complex', 'steel', 'oil', 'tech', 'airport', 'rubber', 'dairy', 'mall', 'resi']);
 
 export interface Tk { sym: string; pct: number; price: number; st: 'ceil' | 'floor' | 'up' | 'down' | 'ref' }
-export interface HoverInfo { sym: string; name: string; pct: number; price: number; st: string; x: number; y: number }
+export interface HoverInfo { sym: string; name: string; sector: string; pct: number; price: number; st: string; x: number; y: number }
 export interface CityView {
   state: () => { floors: number; maxFloors: number; rooms: string[]; name: string };
   onHQ: () => void;
@@ -31,6 +31,7 @@ export class CityScene extends Phaser.Scene {
   private hour = 12;
   private zoomIdx = 2;
   private dragMoved = false;
+  private autoZoom = true;
   private rain!: Phaser.GameObjects.Graphics;
   private night!: Phaser.GameObjects.Rectangle;
   private sky!: Phaser.GameObjects.Image;
@@ -52,7 +53,7 @@ export class CityScene extends Phaser.Scene {
     this.build();
     const cam = this.cameras.main;
     const hq = this.plotCenter('HQ'); cam.centerOn(hq.x, hq.y - 40);
-    this.zoomIdx = cam.width >= 1700 ? 3 : cam.width >= 950 ? 2 : cam.width >= 700 ? 1 : 0; cam.setZoom(ZOOMS[this.zoomIdx]); this.layoutOverlay();
+    this.fitZoom(true);
 
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
       if (!p.isDown) return;
@@ -62,9 +63,17 @@ export class CityScene extends Phaser.Scene {
     });
     this.input.on('pointerup', () => { this.time.delayedCall(30, () => { this.dragMoved = false; }); });
     this.input.on('wheel', (_p: unknown, _o: unknown, _dx: number, dy: number) => {
-      this.zoomIdx = Phaser.Math.Clamp(this.zoomIdx + (dy > 0 ? -1 : 1), 0, ZOOMS.length - 1); cam.setZoom(ZOOMS[this.zoomIdx]); this.layoutOverlay();
+      this.autoZoom = false; this.zoomIdx = Phaser.Math.Clamp(this.zoomIdx + (dy > 0 ? -1 : 1), 0, ZOOMS.length - 1); cam.setZoom(ZOOMS[this.zoomIdx]); this.layoutOverlay();
     });
-    this.scale.on('resize', () => this.layoutOverlay());
+    this.scale.on('resize', () => { if (this.autoZoom) this.fitZoom(false); this.layoutOverlay(); });
+  }
+
+  /** chọn mức zoom theo bề rộng khung; chưa tự zoom thì tự co giãn khi đổi kích thước cửa sổ */
+  private fitZoom(center: boolean): void {
+    const cam = this.cameras.main, w = cam.width;
+    this.zoomIdx = w >= 1700 ? 3 : w >= 1100 ? 2 : w >= 760 ? 1 : 0; cam.setZoom(ZOOMS[this.zoomIdx]);
+    if (center) { const hq = this.plotCenter('HQ'); cam.centerOn(hq.x, hq.y - 40); }
+    this.layoutOverlay();
   }
 
   private plotCenter(key: string): { x: number; y: number } {
@@ -82,8 +91,15 @@ export class CityScene extends Phaser.Scene {
       const key = rx && ry ? 't_road_x' : rx ? 't_road_b' : ry ? 't_road_a' : 't_grass';
       const p = P(tx, ty); this.add.image(p.x, p.y, key).setOrigin(0.5, 0).setDepth(0);
     }
-    // plaza quanh HQ
-    for (let j = 0; j < 6; j++) for (let i = 0; i < 6; i++) if (PLOTS[j][i] === 'HQ') for (const dx of [1, 2]) for (const dy of [1, 2]) { const p = P(3 * i + dx, 3 * j + dy); this.add.image(p.x, p.y, 't_plaza').setOrigin(0.5, 0).setDepth(1); }
+    // nền khu đất: mỗi ngành một màu; HQ vàng; đất trống cam sáng nhấp nháy
+    for (let j = 0; j < 6; j++) for (let i = 0; i < 6; i++) {
+      const key = PLOTS[j][i]; const info = stockInfo(key);
+      const tint = key === 'HQ' ? 0xf5c542 : key.startsWith('lot:') ? 0xffd27a : key === 'future' ? 0x8a8aa0 : info ? SECTOR_TINT[info.sector] : 0xffffff;
+      for (const dx of [1, 2]) for (const dy of [1, 2]) {
+        const p = P(3 * i + dx, 3 * j + dy); const im = this.add.image(p.x, p.y, 't_plaza').setOrigin(0.5, 0).setDepth(1).setTint(tint);
+        if (key.startsWith('lot:')) this.tweens.add({ targets: im, alpha: { from: 1, to: 0.55 }, duration: 800, yoyo: true, repeat: -1 });
+      }
+    }
 
     for (let j = 0; j < 6; j++) for (let i = 0; i < 6; i++) {
       const key = PLOTS[j][i]; const c = P(3 * i + 2, 3 * j + 2);
@@ -128,7 +144,7 @@ export class CityScene extends Phaser.Scene {
     const list = SECTOR_SPRITES[info.sector]; const key = list[idx % list.length];
     const { y, depth } = this.spriteBase(key, c);
     const sprite = this.add.image(c.x, y, key).setOrigin(0.5, 1).setDepth(depth);
-    const label = this.add.text(c.x, y - sprite.height - 4, sym, { ...FONT, backgroundColor: '#0b0a14', padding: { x: 4, y: 1 } }).setOrigin(0.5, 1).setDepth(9500 + depth / 1000).setResolution(2);
+    const label = this.add.text(c.x, y - sprite.height - 4, sym, { ...FONT, fontSize: '14px', backgroundColor: '#0b0a14', padding: { x: 3, y: 1 } }).setOrigin(0.5, 1).setDepth(9500 + depth / 1000).setResolution(2);
     this.blds.set(sym, { sym, sprite, label, baseY: y });
     sprite.setInteractive({ pixelPerfect: true, alphaTolerance: 40, useHandCursor: true });
     sprite.on('pointerover', (p: Phaser.Input.Pointer) => this.hover(sym, p)).on('pointermove', (p: Phaser.Input.Pointer) => this.hover(sym, p))
@@ -137,7 +153,7 @@ export class CityScene extends Phaser.Scene {
 
   private hover(sym: string, p: Phaser.Input.Pointer): void {
     const t = this.tickers.get(sym); const info = stockInfo(sym); if (!info) return;
-    this.view.onHover({ sym, name: info.name, pct: t?.pct ?? 0, price: t?.price ?? 0, st: t?.st ?? 'ref', x: (p.event as MouseEvent).clientX, y: (p.event as MouseEvent).clientY });
+    this.view.onHover({ sym, name: info.name, sector: SECTOR_NAMES[info.sector], pct: t?.pct ?? 0, price: t?.price ?? 0, st: t?.st ?? 'ref', x: (p.event as MouseEvent).clientX, y: (p.event as MouseEvent).clientY });
   }
 
   private addHQ(c: { x: number; y: number }, st: { floors: number; maxFloors: number; name: string }): void {
@@ -145,7 +161,7 @@ export class CityScene extends Phaser.Scene {
     const glow = this.add.image(c.x, c.y + 8, 'glow_gold').setDepth(depth - 1).setAlpha(0.6);
     this.tweens.add({ targets: glow, alpha: 0.25, duration: 1400, yoyo: true, repeat: -1 });
     const sprite = this.add.image(c.x, y, 'hq').setOrigin(0.5, 1).setDepth(depth);
-    this.add.text(c.x, y - sprite.height - 4, `${st.name.toUpperCase()} · T${st.floors}/${st.maxFloors}`, { ...FONT, color: '#f5c542', backgroundColor: '#0b0a14', padding: { x: 5, y: 1 } }).setOrigin(0.5, 1).setDepth(9500 + depth / 1000).setResolution(2);
+    this.add.text(c.x, y - sprite.height - 6, `♛ ${st.name.toUpperCase()}\nTRỤ SỞ CỦA BẠN · T${st.floors}/${st.maxFloors}`, { ...FONT, fontSize: '16px', align: 'center', color: '#f5c542', backgroundColor: '#1b1403', padding: { x: 8, y: 3 } }).setOrigin(0.5, 1).setDepth(9500 + depth / 1000).setResolution(2);
     sprite.setInteractive({ pixelPerfect: true, alphaTolerance: 40, useHandCursor: true });
     sprite.on('pointerup', () => { if (!this.dragMoved) { this.select('HQ', c); this.view.onHQ(); } });
   }
@@ -161,11 +177,14 @@ export class CityScene extends Phaser.Scene {
       return;
     }
     const lot = this.add.image(c.x, c.y, 't_lot').setOrigin(0.5, 0.5).setDepth(c.y);
-    const title = room ? `MẶT BẰNG · ${def!.short}` : 'MẶT BẰNG · SẮP CÓ';
-    const sub = room ? `Xây: ${def!.cost.toLocaleString('vi-VN')} tr` : 'chưa mở';
-    const t = this.add.text(c.x, c.y - 18, `${title}\n${sub}`, { ...FONT, fontSize: '13px', align: 'center', color: room ? def!.css : '#9a95b8', backgroundColor: '#0b0a14', padding: { x: 4, y: 2 } }).setOrigin(0.5, 1).setDepth(9500 + c.y / 1000).setResolution(2);
-    void t;
+    const buy = !!room;
+    const banner = this.add.text(c.x, c.y - 30, buy ? '＋ MUA ĐẤT' : 'SẮP MỞ', { ...FONT, fontSize: '20px', color: buy ? '#1a1200' : '#d0d0e4', backgroundColor: buy ? '#f5c542' : '#4a4660', padding: { x: 8, y: 3 } })
+      .setOrigin(0.5, 1).setDepth(9500 + c.y / 1000).setResolution(2);
+    this.add.text(c.x, c.y - 28, buy ? `${def!.name}\n${def!.cost.toLocaleString('vi-VN')} tr` : 'chưa mở', { ...FONT, fontSize: '14px', align: 'center', color: buy ? '#ffffff' : '#9a95b8', backgroundColor: '#0b0a14', padding: { x: 5, y: 2 } })
+      .setOrigin(0.5, 0).setDepth(9500 + c.y / 1000).setResolution(2);
+    if (buy) this.tweens.add({ targets: banner, y: banner.y - 5, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     lot.setInteractive({ pixelPerfect: true, alphaTolerance: 30, useHandCursor: true }).on('pointerup', () => { if (!this.dragMoved) this.view.onLot(room || null); });
+    banner.setInteractive({ useHandCursor: true }).on('pointerup', () => { if (!this.dragMoved) this.view.onLot(room || null); });
   }
 
   /* ---------- dữ liệu, mood, thời gian ---------- */

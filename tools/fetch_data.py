@@ -30,6 +30,21 @@ SYMBOLS = [
     # UPCOM
     ("BSR", "UPCOM", "stock"), ("ACV", "UPCOM", "stock"), ("QTP", "UPCOM", "stock"),
     ("VGI", "UPCOM", "stock"), ("MCH", "UPCOM", "stock"),
+    # VN30 (bổ sung cho game V2)
+    ("ACB", "HOSE", "stock"),
+    ("GVR", "HOSE", "stock"),
+    ("HDB", "HOSE", "stock"),
+    ("LPB", "HOSE", "stock"),
+    ("MSN", "HOSE", "stock"),
+    ("SAB", "HOSE", "stock"),
+    ("SHB", "HOSE", "stock"),
+    ("SSB", "HOSE", "stock"),
+    ("STB", "HOSE", "stock"),
+    ("TCX", "HOSE", "stock"),
+    ("VIB", "HOSE", "stock"),
+    ("VJC", "HOSE", "stock"),
+    ("VPL", "HOSE", "stock"),
+    ("VRE", "HOSE", "stock"),
 ]
 
 
