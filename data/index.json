@@ -1,0 +1,226 @@
+{
+ "VNINDEX": {
+  "exchange": "INDEX",
+  "type": "index",
+  "from": "2018-01-02",
+  "to": "2026-10-16",
+  "n": 2158
+ },
+ "VN30": {
+  "exchange": "INDEX",
+  "type": "index",
+  "from": "2020-05-11",
+  "to": "2026-10-16",
+  "n": 1576
+ },
+ "HNX": {
+  "exchange": "INDEX",
+  "type": "index",
+  "from": "2020-05-11",
+  "to": "2026-10-16",
+  "n": 1577
+ },
+ "UPCOM": {
+  "exchange": "INDEX",
+  "type": "index",
+  "from": "2020-05-11",
+  "to": "2026-10-16",
+  "n": 1376
+ },
+ "VCB": {
+  "exchange": "HOSE",
+  "type": "stock",
+  "from": "2018-01-02",
+  "to": "2026-10-16",
+  "n": 2192
+ },
+ "BID": {
+  "exchange": "HOSE",
+  "type": "stock",
+  "from": "2018-01-02",
+  "to": "2026-10-16",
+  "n": 2192
+ },
+ "CTG": {
+  "exchange": "HOSE",
+  "type": "stock",
+  "from": "2018-01-02",
+  "to": "2026-10-16",
+  "n": 2192
+ },
+ "TCB": {
+  "exchange": "HOSE",
+  "type": "stock",
+  "from": "2018-06-04",
+  "to": "2026-10-16",
+  "n": 2093
+ },
+ "MBB": {
+  "exchange": "HOSE",
+  "type": "stock",
+  "from": "2018-01-02",
+  "to": "2026-10-16",
+  "n": 2192
+ },
+ "VPB": {
+  "exchange": "HOSE",
+  "type": "stock",
+  "from": "2018-01-02",
+  "to": "2026-10-16",
+  "n": 2192
+ },
+ "HPG": {
+  "exchange": "HOSE",
+  "type": "stock",
+  "from": "2018-01-02",
+  "to": "2026-10-16",
+  "n": 2192
+ },
+ "VIC": {
+  "exchange": "HOSE",
+  "type": "stock",
+  "from": "2018-01-02",
+  "to": "2026-10-16",
+  "n": 2192
+ },
+ "VHM": {
+  "exchange": "HOSE",
+  "type": "stock",
+  "from": "2018-05-17",
+  "to": "2026-10-16",
+  "n": 2105
+ },
+ "VNM": {
+  "exchange": "HOSE",
+  "type": "stock",
+  "from": "2018-01-02",
+  "to": "2026-10-16",
+  "n": 2192
+ },
+ "FPT": {
+  "exchange": "HOSE",
+  "type": "stock",
+  "from": "2018-01-02",
+  "to": "2026-10-16",
+  "n": 2192
+ },
+ "MWG": {
+  "exchange": "HOSE",
+  "type": "stock",
+  "from": "2018-01-02",
+  "to": "2026-10-16",
+  "n": 2192
+ },
+ "SSI": {
+  "exchange": "HOSE",
+  "type": "stock",
+  "from": "2018-01-02",
+  "to": "2026-10-16",
+  "n": 2192
+ },
+ "VND": {
+  "exchange": "HOSE",
+  "type": "stock",
+  "from": "2018-01-02",
+  "to": "2026-10-16",
+  "n": 2186
+ },
+ "VCI": {
+  "exchange": "HOSE",
+  "type": "stock",
+  "from": "2018-01-02",
+  "to": "2026-10-16",
+  "n": 2192
+ },
+ "NVL": {
+  "exchange": "HOSE",
+  "type": "stock",
+  "from": "2018-01-02",
+  "to": "2026-10-16",
+  "n": 2192
+ },
+ "DIG": {
+  "exchange": "HOSE",
+  "type": "stock",
+  "from": "2018-01-02",
+  "to": "2026-10-16",
+  "n": 2192
+ },
+ "GAS": {
+  "exchange": "HOSE",
+  "type": "stock",
+  "from": "2018-01-02",
+  "to": "2026-10-16",
+  "n": 2192
+ },
+ "SHS": {
+  "exchange": "HNX",
+  "type": "stock",
+  "from": "2018-01-02",
+  "to": "2026-10-16",
+  "n": 2194
+ },
+ "PVS": {
+  "exchange": "HNX",
+  "type": "stock",
+  "from": "2018-01-02",
+  "to": "2026-10-16",
+  "n": 2194
+ },
+ "CEO": {
+  "exchange": "HNX",
+  "type": "stock",
+  "from": "2018-01-02",
+  "to": "2026-10-16",
+  "n": 2194
+ },
+ "IDC": {
+  "exchange": "HNX",
+  "type": "stock",
+  "from": "2018-01-02",
+  "to": "2026-10-16",
+  "n": 2187
+ },
+ "MBS": {
+  "exchange": "HNX",
+  "type": "stock",
+  "from": "2018-01-02",
+  "to": "2026-10-16",
+  "n": 2194
+ },
+ "BSR": {
+  "exchange": "UPCOM",
+  "type": "stock",
+  "from": "2018-03-01",
+  "to": "2026-10-16",
+  "n": 2149
+ },
+ "ACV": {
+  "exchange": "UPCOM",
+  "type": "stock",
+  "from": "2018-01-02",
+  "to": "2026-10-16",
+  "n": 2188
+ },
+ "QTP": {
+  "exchange": "UPCOM",
+  "type": "stock",
+  "from": "2018-01-02",
+  "to": "2026-10-16",
+  "n": 2193
+ },
+ "VGI": {
+  "exchange": "UPCOM",
+  "type": "stock",
+  "from": "2018-09-14",
+  "to": "2026-10-16",
+  "n": 2013
+ },
+ "MCH": {
+  "exchange": "UPCOM",
+  "type": "stock",
+  "from": "2018-01-02",
+  "to": "2026-10-16",
+  "n": 2189
+ }
+}

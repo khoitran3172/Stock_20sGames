@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sàn Đỏ Sàn Xanh</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div class="brand">SÀN ĐỎ SÀN XANH <small>prototype · chế độ Phiên</small></div>
+  <div id="indices"></div>
+</header>
+
+<div class="toolbar">
+  <label>Phiên nổi bật
+    <select id="notable"></select>
+  </label>
+  <label>Ngày
+    <input type="date" id="dateInput">
+  </label>
+  <label>Thời lượng
+    <select id="dur">
+      <option value="20">20 giây</option>
+      <option value="45" selected>45 giây</option>
+      <option value="90">90 giây</option>
+      <option value="180">3 phút</option>
+    </select>
+  </label>
+  <label>Chính sách margin
+    <select id="policy">
+      <option value="safe">Thận trọng (lãi thấp, ít rủi ro)</option>
+      <option value="bal" selected>Cân bằng</option>
+      <option value="risky">Liều (lãi cao, dễ cháy)</option>
+    </select>
+  </label>
+  <label><input type="checkbox" id="auto"> Tự động xử lý</label>
+  <button id="btnPlay" class="primary">▶ Chạy</button>
+  <button id="btnRestart">↺ Làm lại</button>
+  <button id="btnNewCo" title="Bắt đầu công ty mới">Công ty mới</button>
+  <span id="phase"></span>
+  <span id="clock">09:00</span>
+</div>
+<div id="co"></div>
+<input type="range" id="seek" min="0" max="255" step="1" value="0" disabled>
+
+<main>
+  <section id="boardPane">
+    <table id="board">
+      <thead><tr><th>Mã</th><th>TC</th><th>Trần</th><th>Sàn</th><th>Giá</th><th>+/-</th><th>%</th><th>KL</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section id="chartPane">
+    <div id="symHead"></div>
+    <div class="tabs">
+      <button data-tab="intra" class="on">Trong phiên (5 phút)</button>
+      <button data-tab="daily">Nến ngày</button>
+    </div>
+    <div id="chartWrap"><canvas id="chart"></canvas></div>
+    <div id="bottom">
+      <div id="custPane">
+        <div class="ttl">Khách hàng · bấm nút khi đang chạy (tạm dừng thì không xử lý được)</div>
+        <table id="cust"><tbody></tbody></table>
+      </div>
+      <div id="feedPane">
+        <div class="ttl">Tin nóng trong phiên</div>
+        <ul id="feed"></ul>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="modal" hidden><div class="card" id="modalCard"></div></div>
+
+<div id="loading">Đang tải dữ liệu…</div>
+<script src="app.js"></script>
+</body>
+</html>
