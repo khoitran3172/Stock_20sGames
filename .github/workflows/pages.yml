@@ -19,10 +19,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: Build app (Vite)
+        working-directory: app
+        run: |
+          npm ci
+          npm run build
       - name: Stage site
         run: |
           mkdir _site
           cp -r index.html web data _site/
+          cp -r app/dist _site/app
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

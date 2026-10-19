@@ -6,6 +6,19 @@ const VPS = 'https://bgapidatafeed.vps.com.vn';
 const DNSE = 'https://services.entrade.com.vn/chart-api/v2/ohlcs';
 const SLOTS_PER_DAY = 14;               // 09:00–11:30 → 8 slot (slot 7 ngắn), 13:00–14:45 → 6 slot
 const KEEP_DAYS = 60;
+// Danh sách dự phòng nếu nguồn VPS lỗi (VN30 tại 19/10/2026).
+const FALLBACK_VN30 = ['ACB','BID','BSR','CTG','FPT','GAS','GVR','HDB','HPG','LPB','MBB','MCH','MSN','MWG','SAB','SHB','SSB','SSI','STB','TCB','TCX','VCB','VHM','VIB','VIC','VJC','VNM','VPB','VPL','VRE'];
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
+
+/** fetch JSON có log trạng thái khi lỗi để debug cron (nguồn có thể chặn IP datacenter). */
+async function getJson<T>(url: string, headers: Record<string, string> = {}): Promise<T | null> {
+  try {
+    const r = await fetch(url, { headers: { 'User-Agent': UA, 'Accept': 'application/json, text/plain, */*', ...headers } });
+    if (!r.ok) { console.error('HTTP', r.status, url.slice(0, 90), (await r.text()).slice(0, 120)); return null; }
+    return (await r.json()) as T;
+  } catch (e) { console.error('fetch lỗi', url.slice(0, 90), String(e)); return null; }
+}
+const VPS_H = { Referer: 'https://banggia.vps.com.vn/', Origin: 'https://banggia.vps.com.vn' };
 const MAX_SAVE_BYTES = 64 * 1024;
 
 /* ---------- tiện ích ---------- */
@@ -44,21 +57,14 @@ type Slot = { i: number; o: number; h: number; l: number; c: number; v: number }
 async function getVN30(env: Env, today: string): Promise<string[]> {
   const cached = await getMeta(env, 'vn30');
   if (cached) { const j = JSON.parse(cached) as { d: string; syms: string[] }; if (j.d === today) return j.syms; }
-  try {
-    const r = await fetch(`${VPS}/getlistckindex/VN30`);
-    const syms = (await r.json()) as string[];
-    if (Array.isArray(syms) && syms.length >= 25) { await setMeta(env, 'vn30', JSON.stringify({ d: today, syms })); return syms; }
-  } catch { /* dùng bản cũ */ }
-  return cached ? (JSON.parse(cached) as { syms: string[] }).syms : [];
+  const syms = await getJson<string[]>(`${VPS}/getlistckindex/VN30`, VPS_H);
+  if (Array.isArray(syms) && syms.length >= 25) { await setMeta(env, 'vn30', JSON.stringify({ d: today, syms })); return syms; }
+  return cached ? (JSON.parse(cached) as { syms: string[] }).syms : FALLBACK_VN30;
 }
 
 async function fetchM1(sym: string, kind: 'stock' | 'index', from: number, to: number): Promise<M1 | null> {
-  try {
-    const r = await fetch(`${DNSE}/${kind}?from=${from}&to=${to}&symbol=${sym}&resolution=1`);
-    if (!r.ok) return null;
-    const d = (await r.json()) as M1;
-    return d && Array.isArray(d.t) && d.t.length ? { t: d.t, o: d.o, h: d.h, l: d.l, c: d.c, v: d.v } : null;
-  } catch { return null; }
+  const d = await getJson<M1>(`${DNSE}/${kind}?from=${from}&to=${to}&symbol=${sym}&resolution=1`);
+  return d && Array.isArray(d.t) && d.t.length ? { t: d.t, o: d.o, h: d.h, l: d.l, c: d.c, v: d.v } : null;
 }
 
 function slotOf(t: number): number {
@@ -84,21 +90,20 @@ export async function ingest(env: Env): Promise<{ date: string; symbols: number;
 
   // 1 call: bảng giá cả rổ (tham chiếu/trần/sàn/khớp/nước ngoài)
   let board: unknown[] = [];
-  try {
-    const r = await fetch(`${VPS}/getliststockdata/${syms.join(',')}`);
-    const raw = (await r.json()) as Record<string, string | number>[];
+  const raw = await getJson<Record<string, string | number>[]>(`${VPS}/getliststockdata/${syms.join(',')}`, VPS_H);
+  if (Array.isArray(raw)) {
     board = raw.map((x) => ({
       sym: x.sym, ref: +x.r, ceil: +x.c, floor: +x.f, last: +x.lastPrice, open: +x.openPrice, high: +x.highPrice, low: +x.lowPrice,
       volLots: +x.lot, foreignBuy: +x.fBVol, foreignSell: +x.fSVolume, foreignRoom: +x.fRoom,
     }));
-  } catch { /* giữ bảng cũ */ }
+  }
 
   // 1 call/mã: nến 1 phút hôm nay (rổ + chỉ số VN30 + VNINDEX) → ~33 subrequest, dưới giới hạn 50 của gói free
   const jobs: [string, 'stock' | 'index'][] = [...syms.map((s): [string, 'stock'] => [s, 'stock']), ['VN30', 'index'], ['VNINDEX', 'index']];
   const results = await Promise.all(jobs.map(([s, k]) => fetchM1(s, k, from, to)));
   const m1: Record<string, M1> = {}, slots: Record<string, Slot[]> = {}; let bars = 0;
   jobs.forEach(([s], i) => { const d = results[i]; if (d) { m1[s] = d; slots[s] = toSlots(d); bars += d.t.length; } });
-  if (!bars) return { date: today, symbols: 0, bars: 0 };       // ngày nghỉ hoặc nguồn lỗi: không ghi đè dữ liệu cũ
+  if (!bars) { console.error('không có nến nào — nguồn lỗi hoặc ngày nghỉ'); return { date: today, symbols: 0, bars: 0 }; }       // ngày nghỉ hoặc nguồn lỗi: không ghi đè dữ liệu cũ
 
   const ts = Math.floor(now / 1000);
   const stmts = [

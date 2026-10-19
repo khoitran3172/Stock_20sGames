@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sàn Đỏ Sàn Xanh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- VT323: font pixel có subset tiếng Việt (OFL) -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&display=swap">
+</head>
+<body>
+<div id="app">
+  <aside id="side">
+    <div class="brand">
+      <div><div class="logo">SÀN ĐỎ<br>SÀN XANH</div><div class="studio">20sGames</div></div>
+      <div class="clockbox"><span id="clock">--:--:--</span><i id="live" class="dot"></i></div>
+    </div>
+
+    <section class="panel">
+      <h3>▸ NGÀY GIAO DỊCH</h3>
+      <div class="kv"><span>Ngày</span><b id="dayLabel">—</b></div>
+      <div class="kv"><span>VN-Index</span><b id="vnidx">—</b></div>
+      <div class="kv"><span>Khung 20 phút</span><b id="slotLabel">—</b></div>
+      <div class="bar"><i id="slotBar"></i></div>
+      <p class="hint" id="dataHint">Đang tải dữ liệu thị trường…</p>
+      <div class="row">
+        <button id="btnPlay" class="primary" disabled>Chạy ngày</button>
+        <button id="btnStop" disabled>Dừng</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h3>▸ CÔNG TY</h3>
+      <div class="kv"><span>Vốn</span><b id="coCash">—</b></div>
+      <div class="kv"><span>Uy tín</span><b id="coRep">—</b></div>
+      <div class="kv"><span>Khách</span><b id="coCust">—</b></div>
+      <div class="kv"><span>Chi phí duy trì</span><b id="coUpkeep">—</b></div>
+      <div class="kv"><span>Quy mô</span><b id="coTier">—</b></div>
+      <div id="coNext" class="hint"></div>
+      <div class="row"><button id="btnCatalog">Mô hình đầu tư</button></div>
+      <div class="row" id="devRow" hidden style="margin-top:6px"><button id="btnCheatCash">DEV +1.000 tr</button></div>
+    </section>
+
+    <section class="panel grow">
+      <h3>▪ NHẬT KÝ CÔNG VIỆC <small id="logCount">(0)</small></h3>
+      <div class="chips" id="chips"></div>
+      <ul id="log"></ul>
+    </section>
+
+    <div class="foot">
+      <span id="roleLabel">—</span>
+      <button id="btnReset" title="Đổi vai / khôi phục">Đổi vai</button>
+    </div>
+  </aside>
+
+  <main id="main">
+    <div id="cards"></div>
+    <div id="stage"><div id="game"></div></div>
+  </main>
+</div>
+
+<div id="modal" hidden><div class="card" id="modalCard"></div></div>
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>
