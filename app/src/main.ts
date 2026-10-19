@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import './style.css';
-import { OfficeScene, GAME_W, gameHeight, type BuildingView } from './scenes/OfficeScene';
+import { CityScene, type CityView, type Tk } from './scenes/CityScene';
+import { stockInfo } from './core/stocks';
 import { ROLES, type RoleId } from './core/config';
 import { FLOORS, FUTURE_FLOORS, PRODUCTS, roomById, floorOfRoom, type FloorDef, type RoomDef } from './core/building';
 import {
@@ -27,7 +28,7 @@ const state = {
   timer: 0,
 };
 let game: Phaser.Game | null = null;
-const office = () => game?.scene.getScene('office') as OfficeScene | undefined;
+const office = () => game?.scene.getScene('city') as CityScene | undefined;
 let saveTimer = 0;
 function persist() {
   saveCompany(co);
@@ -88,6 +89,21 @@ const slotLabel = (i: number) => {
   const f = (v: number) => `${pad(Math.floor(v / 60))}:${pad(v % 60)}`;
   return `${f(m)}–${f(e)}`;
 };
+let board: Record<string, api.BoardRow> = {};
+/** giá từng mã tại khung i (hoặc khung cuối có dữ liệu ≤ i); i = null → giá hiện tại của bảng giá */
+function tickersAt(i: number | null): Tk[] {
+  return Object.values(board).map((b) => {
+    let price = b.last;
+    if (i !== null && state.slots) {
+      const bars = state.slots.slots[b.sym] ?? [];
+      const bar = [...bars].reverse().find((x) => x.i <= i);
+      if (bar) price = bar.c;
+    }
+    const pct = b.ref ? (price / b.ref - 1) * 100 : 0, lim = b.ref ? (b.ceil / b.ref - 1) * 100 || 7 : 7;
+    const st: Tk['st'] = pct >= lim - 0.15 ? 'ceil' : pct <= -lim + 0.15 ? 'floor' : Math.abs(pct) < 0.05 ? 'ref' : pct > 0 ? 'up' : 'down';
+    return { sym: b.sym, pct, price, st };
+  });
+}
 function showSlot(i: number, announce = true) {
   const s = state.slots; if (!s) return;
   const bars = s.slots['VNINDEX']; if (!bars?.length) return;
@@ -97,24 +113,28 @@ function showSlot(i: number, announce = true) {
   $('#slotLabel').textContent = `${i + 1}/${s.slotsPerDay} · ${slotLabel(i)}`;
   ($('#slotBar') as HTMLElement).style.width = `${((i + 1) / s.slotsPerDay) * 100}%`;
   const slotPct = (b.c / b.o - 1) * 100;
-  office()?.setMood(Math.max(-1, Math.min(1, slotPct / 0.4)));
+  office()?.setMood(Math.max(-1, Math.min(1, pct / 1)));
+  office()?.setTickers(tickersAt(i));
   if (!announce) return;
-  log('SYS', `Khung ${slotLabel(i)}: VN-Index ${b.c.toFixed(2)} (${slotPct >= 0 ? '+' : ''}${slotPct.toFixed(2)}%)`);
-  if (Math.abs(slotPct) > 0.25 && co.rooms.length) office()?.pulse(co.rooms[Math.floor(Math.random() * co.rooms.length)]);
+  const tk = tickersAt(i), ce = tk.filter((t) => t.st === 'ceil').length, fl = tk.filter((t) => t.st === 'floor').length;
+  log('SYS', `Khung ${slotLabel(i)}: VN-Index ${b.c.toFixed(2)} (${slotPct >= 0 ? '+' : ''}${slotPct.toFixed(2)}%)${ce ? ` · ${ce} mã tím trần` : ''}${fl ? ` · ${fl} mã nằm sàn` : ''}`);
 }
 async function loadMarket() {
   $('#dataHint').textContent = 'Đang tải dữ liệu thị trường…';
   try {
+    const m = await api.fetchMarket();
+    if (m.status === 200 && m.data) board = Object.fromEntries(m.data.board.map((b) => [b.sym, b]));
     const r = await api.fetchSlots();
     if (r.status === 200 && r.data) {
       state.slots = r.data; $('#dayLabel').textContent = r.data.date;
       const n = r.data.slots['VNINDEX']?.length ?? 0;
-      $('#dataHint').textContent = `Dữ liệu thật ${r.data.date} (${n} khung). Bấm “Chạy ngày” để xem diễn biến.`;
+      $('#dataHint').textContent = `Dữ liệu thật ${r.data.date} (${n} khung). Bấm “Chạy ngày” để xem 30 tòa nhà đổi màu theo từng khung.`;
       ($('#btnPlay') as HTMLButtonElement).disabled = n === 0;
       showSlot(n - 1, false);
       log('SYS', `Đã tải ${n} khung 20 phút của ${r.data.date}`);
     } else {
       $('#dataHint').textContent = 'Chưa có dữ liệu hôm nay (ngày nghỉ hoặc trước 9:20).';
+      office()?.setTickers(tickersAt(null));
       log('SYS', 'API chưa có dữ liệu ngày này');
     }
   } catch { $('#dataHint').textContent = 'Không kết nối được máy chủ dữ liệu.'; log('SYS', 'Lỗi kết nối API', '#ef5350'); }
@@ -165,14 +185,26 @@ function showRoom(floorId: number, roomId: string) {
 }
 function showFloor(floorId: number) {
   const f = FLOORS.find((x) => x.id === floorId); if (!f) return;
-  state.floor = f.id; renderCards(); office()?.selectFloor(f.id);
-  if (co.floors.includes(f.id)) { log('T' + f.id, `Chọn tầng ${f.id}: ${f.name}`, FLOOR_COLORS[(f.id - 1) % FLOOR_COLORS.length]); return; }
+  state.floor = f.id; renderCards();
+  if (co.floors.includes(f.id)) {
+    const rows = f.rooms.map((r) => { const b = co.rooms.includes(r.id);
+      return `<div class="prod ${b ? '' : 'off'}" style="cursor:pointer" data-roomopen="${f.id}:${r.id}"><b style="color:${r.css}">${r.name}</b> <small>${b ? 'ĐÃ XÂY' : `mặt bằng trống · ${money(r.cost)}`}</small><div class="pd">${r.blurb}</div></div>`; }).join('');
+    modal(`<h2>Tầng ${f.id} · ${f.name}</h2><p class="desc">${f.blurb}</p>${rows}<div class="row"><button id="hqBack">← Trụ sở</button><button id="mClose">Đóng</button></div>`);
+    return;
+  }
   const cs = floorChecks(co, f), ok = allOk(cs);
   modal(`<h2>Tầng ${f.id} · ${f.name}</h2><p class="desc">${f.blurb}</p>
     <div class="kv"><span>Chi phí mở tầng</span><b>${money(f.cost)}</b></div>
     <h4>Điều kiện</h4>${checklist(cs)}
     <h4>Gồm các phòng</h4><ul class="plain">${f.rooms.map((r) => `<li><b style="color:${r.css}">${r.name}</b> · ${money(r.cost)} — ${r.blurb}</li>`).join('')}</ul>
     <div class="row"><button class="primary" id="mFloor" data-floor="${f.id}" ${ok ? '' : 'disabled'}>Mở tầng · ${money(f.cost)}</button><button id="mClose">Đóng</button></div>`);
+}
+function showHQ() {
+  const rows = FLOORS.map((f) => {
+    const un = co.floors.includes(f.id), built = f.rooms.filter((r) => co.rooms.includes(r.id)).length;
+    return `<div class="prod ${un ? '' : 'off'}" style="cursor:pointer" data-hqfloor="${f.id}"><b>Tầng ${f.id} · ${f.name}</b> <small>${un ? `${built}/${f.rooms.length} phòng` : `chưa mở · bậc ${f.tier} · ${money(f.cost)}`}</small><div class="pd">${f.blurb}</div></div>`;
+  }).join('');
+  modal(`<h2>Trụ sở công ty</h2><p>Bấm một tầng để xem phòng, xây thêm hoặc mở tầng mới.</p>${rows}<div class="row"><button id="mClose">Đóng</button></div>`);
 }
 function showCatalog() {
   const groups = FLOORS.map((f) => {
@@ -218,17 +250,31 @@ function startGame(role: RoleId) {
   $('#roleLabel').textContent = ROLES.find((r) => r.id === role)?.name ?? '';
   renderCompany(); renderCards(); renderChips(); renderLog();
   if (!game) {
-    const view: BuildingView = {
-      state: () => ({ floors: co.floors, rooms: co.rooms, name: 'Chứng khoán Sàn Đỏ' }),
-      onRoom: (fid, rid) => showRoom(fid, rid),
-      onFloor: (fid) => showFloor(fid),
+    const view: CityView = {
+      state: () => ({ floors: co.floors.length, maxFloors: FLOORS.length, rooms: co.rooms, name: 'Chứng khoán Sàn Đỏ' }),
+      onHQ: () => showHQ(),
+      onStock: (sym) => {
+        const info = stockInfo(sym);
+        const t = tickersAt(state.slots ? (state.slots.slots['VNINDEX']?.length ?? 1) - 1 : null).find((x) => x.sym === sym);
+        log('SYS', `${sym} · ${info?.name ?? ''}: ${t ? (t.pct >= 0 ? '+' : '') + t.pct.toFixed(2) + '%' : '—'}`);
+      },
+      onLot: (room) => {
+        if (!room) { log('SYS', 'Lô đất này sẽ mở ở bản sau.'); return; }
+        const f = floorOfRoom(room); if (f) showRoom(f.id, room);
+      },
+      onHover: (h) => {
+        const tip = $('#tip'); if (!h) { tip.style.display = 'none'; return; }
+        const col = ({ up: '#3fcf6d', down: '#ef5350', ref: '#f5c542', ceil: '#e879f9', floor: '#22d3ee' } as Record<string, string>)[h.st] ?? '#fff';
+        tip.innerHTML = `<b>${h.sym}</b> <small>${h.name}</small><br><span style="color:${col}">${h.pct >= 0 ? '+' : ''}${h.pct.toFixed(2)}% · ${h.price.toFixed(2)}${h.st === 'ceil' ? ' · TRẦN' : h.st === 'floor' ? ' · SÀN' : ''}</span>`;
+        tip.style.display = 'block'; tip.style.left = h.x + 14 + 'px'; tip.style.top = h.y + 14 + 'px';
+      },
     };
     const g = new Phaser.Game({
-      type: Phaser.AUTO, parent: 'game', width: GAME_W, height: gameHeight(FLOORS.length), pixelArt: true, roundPixels: true,
-      backgroundColor: '#0f0d18', scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH }, scene: [OfficeScene],
+      type: Phaser.AUTO, parent: 'game', width: 960, height: 540, pixelArt: true, roundPixels: true,
+      backgroundColor: '#14194a', scale: { mode: Phaser.Scale.RESIZE, width: '100%', height: '100%' }, scene: [CityScene],
       callbacks: { preBoot: (gg) => { gg.registry.set('view', view); } },
     });
-    game = g; (window as unknown as { __game: Phaser.Game; __co: () => Company }).__game = g;
+    game = g; (window as unknown as { __game: Phaser.Game }).__game = g;
     (window as unknown as { __co: () => Company }).__co = () => co;
   }
   log('SYS', `Bắt đầu vai: ${ROLES.find((r) => r.id === role)?.name}`);
@@ -239,6 +285,9 @@ function startGame(role: RoleId) {
 document.addEventListener('click', (e) => {
   const t = e.target as HTMLElement;
   const chip = t.closest('[data-f]') as HTMLElement | null; if (chip) { state.filter = chip.dataset.f!; renderChips(); renderLog(); return; }
+  const ro = t.closest('[data-roomopen]') as HTMLElement | null; if (ro) { const [fid, rid] = ro.dataset.roomopen!.split(':'); showRoom(+fid, rid); return; }
+  if (t.id === 'hqBack') { showHQ(); return; }
+  const hqf = t.closest('[data-hqfloor]') as HTMLElement | null; if (hqf) { showFloor(+hqf.dataset.hqfloor!); return; }
   const card = t.closest('.dcard[data-floor]') as HTMLElement | null; if (card) { showFloor(+card.dataset.floor!); return; }
   const role = t.closest('[data-role]') as HTMLElement | null; if (role && !(role as HTMLButtonElement).disabled) { void chooseRole(role.dataset.role as RoleId); return; }
   if (t.id === 'mClose') { closeModal(); return; }
@@ -272,6 +321,7 @@ $('#btnReset').addEventListener('click', () => { stopDay(); api.clearRole(); sho
 if (DEV) $('#devRow').hidden = false;
 
 setInterval(tickClock, 1000); tickClock();
+setInterval(() => { const d = new Date(); office()?.setHour(d.getHours() + d.getMinutes() / 60); }, 60000);
 renderCompany(); renderCards(); renderChips();
 
 (async () => {

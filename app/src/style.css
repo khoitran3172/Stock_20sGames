@@ -85,3 +85,7 @@ input[type=text] { font: inherit; background: #0d0b15; color: var(--txt); border
 .prod.off { opacity: .75; border-style: dashed; }
 .prod small { color: var(--mut); } .prod .pm { color: var(--accent); font-size: 15px; } .prod .pd { color: var(--mut); font-size: 16px; }
 .cat { margin: 8px 0; } .cat .ch { font-size: 22px; } .cat .ch small { color: var(--mut); font-size: 15px; }
+
+#tip { position: fixed; pointer-events: none; background: #0b0a14ee; border: 2px solid var(--accent); padding: 4px 8px; font-size: 18px; display: none; z-index: 9; white-space: nowrap; }
+#tip small { color: var(--mut); }
+#game canvas { cursor: grab; }

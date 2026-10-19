@@ -33,6 +33,8 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<{ status: 
 }
 
 export const health = () => call<{ ok: boolean; vnDate: string }>('/api/health');
+export interface BoardRow { sym: string; ref: number; ceil: number; floor: number; last: number }
+export const fetchMarket = () => call<{ date: string; board: BoardRow[] }>('/api/market');
 export const fetchSlots = (date?: string) => call<SlotsResp>('/api/slots' + (date ? `?date=${date}` : ''));
 export const createPlayer = () => call<{ created?: boolean; exists?: boolean; recoveryCode?: string }>('/api/player/new', { method: 'POST' });
 export const recoverPlayer = (code: string) => call<{ recovered?: boolean; error?: string }>('/api/player/recover', { method: 'POST', body: JSON.stringify({ recoveryCode: code }) });

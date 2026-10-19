@@ -17,7 +17,7 @@ Game web mô phỏng chứng khoán Việt Nam của studio **20sGames**: điề
 ## Trạng thái
 
 - **V1 (đang chạy trên Pages):** prototype chế độ Phiên. Bảng điện, nến, replay một phiên lịch sử thật, khách NPC có margin, call margin, giải chấp, kẹt sàn, vị thế qua đêm.
-- **V2 (đang làm, thư mục `app/`):** tòa nhà CTCK 5 tầng pixel art (Vite + TypeScript + Phaser). Mở tầng và xây phòng theo vốn và quy mô công ty, mỗi phòng mở khóa mô hình đầu tư. Chọn vai (CTCK sẵn sàng; Quỹ, Cá nhân sắp ra mắt), dữ liệu thật VN30 theo khung 20 phút. Xem [docs/BUILDING.md](docs/BUILDING.md) và [docs/PLAN_V2.md](docs/PLAN_V2.md).
+- **V2 (đang làm, thư mục `app/`):** thành phố isometric pixel art (Vite + TypeScript + Phaser): **30 mã VN30 là 30 tòa nhà** theo ngành, đổi màu/nhãn theo dữ liệu thật; HQ công ty ở giữa, bấm vào để mở tầng và xây phòng theo vốn và quy mô, mỗi phòng mở khóa mô hình đầu tư. Chọn vai (CTCK sẵn sàng; Quỹ, Cá nhân sắp ra mắt), dữ liệu thật VN30 theo khung 20 phút. Xem [docs/BUILDING.md](docs/BUILDING.md) và [docs/PLAN_V2.md](docs/PLAN_V2.md).
 - **Backend:** Cloudflare Worker + D1 đã deploy. Cron lấy giá VN30 mỗi 20 phút trong giờ giao dịch, API cho game, lưu tiến trình ẩn danh. Game V2 chưa nối vào backend.
 
 ## Cấu trúc thư mục
@@ -105,3 +105,10 @@ npm run deploy
 ## Deploy web
 
 Mỗi lần push lên `main`, workflow `.github/workflows/pages.yml` tự đưa `index.html`, `web/` và `data/` lên GitHub Pages. Cần bật Settings → Pages → Source: **GitHub Actions**.
+
+## Tài nguyên đồ họa
+
+- Sprite tòa nhà isometric (`app/public/assets/iso/*.png`) do tác giả dự án tạo bằng PixelLab (gói thử); tuân theo [điều khoản PixelLab](https://pixellab.ai/termsofservice).
+- Tile nền, đường, xe máy, lô đất vẽ bằng code (`app/src/core/isoart.ts`).
+- Font: VT323 (SIL OFL) từ Google Fonts.
+- Các gói miễn phí đã khảo sát nhưng không dùng (không đủ 30 tòa tháp isometric đồng bộ): xem `docs/PLAN_V2.md` mục 7.
